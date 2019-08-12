@@ -3,6 +3,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import accuracy_score, mean_absolute_error
 # Import the train_test_split function
 from sklearn.model_selection import train_test_split
+# imputation
+from sklearn.impute import SimpleImputer
 
 # get absolute error using max leaf nodes
 def get_mae( model, train_X, val_X, train_y, val_y):
@@ -47,13 +49,37 @@ for i in range(0, len(models)):
 scores = {model : get_mae(model, train_X, val_X, train_y, val_y) for model in models}
 print("best_tree_size", round(scores.get(min(scores, key=scores.get))))
 
+# Make copy to avoid changing original data (when imputing)
+X_train_plus = train_X.copy()
+X_valid_plus = val_X.copy()
+
+# Get names of columns with missing values
+cols_with_missing = [col for col in train_X.columns
+                     if train_X[col].isnull().any()]
+
+# Make new columns indicating what will be imputed
+for col in cols_with_missing:
+    X_train_plus[col + '_was_missing'] = X_train_plus[col].isnull()
+    X_valid_plus[col + '_was_missing'] = X_valid_plus[col].isnull()
+
+print(cols_with_missing)
+
+# Imputation
+my_imputer = SimpleImputer()
+imputed_X_train_plus = pd.DataFrame(my_imputer.fit_transform(X_train_plus))
+imputed_X_valid_plus = pd.DataFrame(my_imputer.transform(X_valid_plus))
+
+# Imputation removed column names; put them back
+imputed_X_train_plus.columns = X_train_plus.columns
+imputed_X_valid_plus.columns = X_valid_plus.columns
+
 my_model = model_2
 
 # Generate test predictions
 preds_test = my_model.predict(X_test)
 
-array = [1, 4, 7]
-array.index(7)
+print("MAE from Approach 3 (An Extension to Imputation):")
+print(get_mae(my_model,imputed_X_train_plus, imputed_X_valid_plus, train_y, val_y))
 
 # Save predictions in format used for competition scoring
 samplesubmission = pd.read_csv('../data/sample_submission.csv')
